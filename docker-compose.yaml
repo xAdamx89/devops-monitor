@@ -1,0 +1,49 @@
+services:
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: monitoring-dozzle
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      # Bindowanie tylko na localhost – nie wystawia panelu bezpośrednio w świat
+      - "127.0.0.1:8888:8080"
+    volumes:
+      # Dostęp do socketa Dockera wyłącznie w trybie read-only
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - dozzle_data:/data
+    environment:
+      - DOZZLE_NO_ANALYTICS=true
+      # Odkomentuj, jeśli chcesz wystawiać Dozzle pod ścieżką (np. domena.pl/dozzle)
+      # - DOZZLE_BASE=/dozzle
+      # Odkomentuj, jeśli chcesz wbudowane logowanie (wymaga pliku users.yml)
+      # - DOZZLE_AUTH_PROVIDER=simple
+    healthcheck:
+      test: ["CMD", "/dozzle", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - monitoring
+
+  # ---------------------------------------------------------
+  # Miejsce na przyszłe usługi: Uptime Kuma, Beszel, itp.
+  # ---------------------------------------------------------
+
+networks:
+  monitoring:
+    name: monitoring_net
+    driver: bridge
+volumes:
+  dozzle_data:
