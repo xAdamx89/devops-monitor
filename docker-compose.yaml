@@ -37,13 +37,64 @@ services:
     networks:
       - monitoring
 
-  # ---------------------------------------------------------
-  # Miejsce na przyszłe usługi: Uptime Kuma, Beszel, itp.
-  # ---------------------------------------------------------
+  beszel:
+    image: henrygd/beszel:latest
+    container_name: monitoring-beszel
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      # Panel WWW Beszel dostępny tylko lokalnie (np. pod reverse proxy / tunel SSH)
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - beszel_data:/beszel_data
+      - beszel_socket:/beszel_socket
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - monitoring
+
+  beszel-agent:
+    image: henrygd/beszel-agent:latest
+    container_name: monitoring-beszel-agent
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    # network_mode: host jest wymagane, aby agent widział prawdziwy ruch sieciowy serwera
+    network_mode: host
+    volumes:
+      - beszel_socket:/beszel_socket
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      # Komunikacja z Hubem przez plik socketu – nie otwiera żadnego portu TCP na hoście
+      LISTEN: /beszel_socket/beszel.sock
+      # Wklej tutaj klucz publiczny SSH wygenerowany przy dodawaniu systemu w panelu Beszel
+      KEY: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK6QtDpYXTvZiCdb0EJkuS/kl4We7Mah8/u4orWziIsr"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   monitoring:
     name: monitoring_net
     driver: bridge
+
 volumes:
   dozzle_data:
+  beszel_data:
+  beszel_socket:
